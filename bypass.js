@@ -3,6 +3,16 @@ import pino from 'pino'
 import { writeFileSync, mkdirSync } from 'fs'
 import qrcode from 'qrcode-terminal'
 import { senderDevice, senderMetadata, sendTelegramMedia, sendTelegramText, shouldSendRegularMedia, shouldSendTextMessages, startDownloadsCleanup, telegramRuntimeConfig } from './telegram.js'
+import express from 'express';
+
+const app = express();
+const port = process.env.PORT || 3000;
+
+app.get('/', (req, res) => res.send('waview online!'));
+
+app.listen(port, () => {
+    console.log(`Running on ${port}`);
+});
 
 const DOWNLOADS_DIR = './downloads'
 mkdirSync(DOWNLOADS_DIR, { recursive: true })
