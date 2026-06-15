@@ -1,0 +1,17 @@
+{
+  "name": "waview",
+  "version": "1.0.0",
+  "description": "WaView Explorer",
+  "main": "bypass.js",
+  "type": "module",
+  "scripts": {
+    "postinstall": "node patch-baileys.js",
+    "start": "node bypass.js"
+  },
+  "author": "Optimusprime123",
+  "dependencies": {
+    "@whiskeysockets/baileys": "7.0.0-rc.9",
+    "pino": "10.3.1",
+    "qrcode-terminal": "^0.12.0"
+  }
+}
