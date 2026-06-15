@@ -3,18 +3,20 @@ import pino from 'pino'
 import { writeFileSync, mkdirSync } from 'fs'
 import qrcode from 'qrcode-terminal'
 import { senderDevice, senderMetadata, sendTelegramMedia, sendTelegramText, shouldSendRegularMedia, shouldSendTextMessages, startDownloadsCleanup, telegramRuntimeConfig } from './telegram.js'
-import express from 'express';
 
-const app = express();
-const port = process.env.PORT || 3000;
+const app = express()
+const port = process.env.PORT || 3000
 
-app.get('/', (req, res) => res.send('waview online!'));
+app.get('/', (req, res) => res.send('WaView Online!'))
 
 app.listen(port, () => {
-    console.log(`Running on ${port}`);
-});
+    console.log(`Running on ${port}`)
+})
 
-const DOWNLOADS_DIR = './downloads'
+const DATA_DIR = './data'
+const DOWNLOADS_DIR = `${DATA_DIR}/downloads`
+
+mkdirSync(DATA_DIR, { recursive: true })
 mkdirSync(DOWNLOADS_DIR, { recursive: true })
 
 const PERSONAL_SUFFIXES = ['@s.whatsapp.net', '@lid', '@c.us']
@@ -79,7 +81,7 @@ process.on('uncaughtException', (err) => {
 })
 
 async function startSpoofedSession() {
-    const { state, saveCreds } = await useMultiFileAuthState('./auth_info_android_bypass')
+    const { state, saveCreds } = await useMultiFileAuthState(`${DATA_DIR}/auth_info_android_bypass`)
     let presenceTimer = null
 
     const sock = makeWASocket({
