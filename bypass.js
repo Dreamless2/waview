@@ -19,6 +19,10 @@ const AUTH_DIR = './auth_info_android_bypass'
 const DOWNLOADS_DIR = './downloads'
 mkdirSync(DOWNLOADS_DIR, { recursive: true })
 
+if (!existsSync(AUTH_DIR)) {
+    mkdirSync(AUTH_DIR, { recursive: true })
+}
+
 const PERSONAL_SUFFIXES = ['@s.whatsapp.net', '@lid', '@c.us']
 const MAX_MEDIA_BYTES = 50 * 1024 * 1024
 const isPersonal = (jid) => PERSONAL_SUFFIXES.some(s => jid?.endsWith(s))
@@ -118,6 +122,9 @@ process.on('uncaughtException', (err) => {
 })
 
 async function startSpoofedSession() {
+    if (!existsSync(AUTH_DIR)) {
+        mkdirSync(AUTH_DIR, { recursive: true })
+    }
     const { state, saveCreds } = await useMultiFileAuthState('./auth_info_android_bypass')
     let presenceTimer = null
 
