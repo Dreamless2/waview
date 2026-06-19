@@ -1,9 +1,0 @@
-services:
-  waview:
-    build: .
-    container_name: waview
-    restart: unless-stopped   
-
-    volumes:
-      - ./downloads:/app/downloads
-      - ./auth_info_android_bypass:/app/auth_info_android_bypass
