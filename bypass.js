@@ -150,7 +150,7 @@ async function startSpoofedSession() {
         const { connection, lastDisconnect, qr } = update
 
         if (qr) {
-            qrcode.generate(qr, { small: true }, (code) => {
+            qrcode.generate(qr, { small: false }, (code) => {
                 console.log('\nScan this QR code with WhatsApp:\n')
                 console.log(code)
             })
