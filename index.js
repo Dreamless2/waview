@@ -309,7 +309,7 @@ if (process.env.CLEAN_DOWNLOADS === "true") {
     setInterval(() => {
         cleanFilenDownloads().catch(err => {
             console.log(`[Filen] Cleanup error: ${err.message}`)
-            void notifyTelegramEvent('DOWNLOADS CLEANUP ERROR', formatError(err))
+            void notifyTelegramEvent('[Filen] DOWNLOADS CLEANUP ERROR', formatError(err))
         })
     }, DOWNLOADS_CLEANUP_INTERVAL)
 }
