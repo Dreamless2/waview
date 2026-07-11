@@ -1,7 +1,6 @@
 {
   "name": "waview",
   "version": "1.0.0",
-  "description": "Bypassing WhatsApp View Once",
   "main": "index.js",
   "type": "module",
   "scripts": {
