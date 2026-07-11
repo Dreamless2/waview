@@ -304,8 +304,10 @@ async function startSpoofedSession() {
     })
 }
 
-if (process.env.CLEAN_DOWNLOADS === "true")
-
+if (process.env.CLEAN_DOWNLOADS === "true") {
+    console.log(`Downloads cleanup is enabled. Cleaning every ${CLEANUP_HOURS} hours.`)
+    startDownloadsCleanup(cleanFilenDownloads, DOWNLOADS_CLEANUP_INTERVAL)
+}
 setInterval(async () => {
     await cleanFilenDownloads()
 }, DOWNLOADS_CLEANUP_INTERVAL)
