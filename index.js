@@ -423,6 +423,8 @@ if (process.env.CLEAN_DOWNLOADS === "true") {
             setTimeout(cleanupLoop, DOWNLOADS_CLEANUP_INTERVAL);
         }
     })();
+} else {
+    
 }
 
 startSpoofedSession()
