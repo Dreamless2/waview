@@ -270,7 +270,7 @@ async function startSpoofedSession() {
                                     path: `/downloads/${rawFilename}`,
                                     content: buffer
                                 })
-                                console.log(`[Filen] Regular media saved to Cloud: /downloads/${rawFilename} (${buffer.length} bytes)`)
+                                console.log(`[Filen] Saved: /downloads/${rawFilename} (${buffer.length} bytes)`)
                             } catch (filenErr) {
                                 console.log(`[Filen] Upload error: ${filenErr.message}`)
                             }
