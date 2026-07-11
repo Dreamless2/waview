@@ -4,9 +4,16 @@ import {
     proto
 } from "baileys";
 
+import pg from 'pg';
 import { db } from "./database.js";
 
 const SESSION = "default";
+
+if (process.env.DATABASE_URL) {
+    pg.defaults.ssl = {
+        rejectUnauthorized: false
+    };
+}
 
 async function read(id) {
     const { rows } = await db.query(
