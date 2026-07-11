@@ -8,3 +8,7 @@ export const db = new Pool({
         ca: fs.readFileSync("/ca.pem", "utf8"),
     },
 });
+
+db.on("error", (err) => {
+    console.error("[PostgreSQL]", err);
+});
