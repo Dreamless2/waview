@@ -12,6 +12,7 @@
     "@filen/sdk": "^0.4.2",
     "baileys": "^7.0.0-rc13",
     "express": "^5.2.1",
+    "pg": "^8.22.0",
     "pino": "10.3.1",
     "qrcode-terminal": "^0.12.0"
   },
