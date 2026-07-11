@@ -11,7 +11,7 @@ const app = report => express()
 const PORT = process.env.PORT || 8000
 
 app.get('/', (req, res) => {
-    res.send('Running!')
+    res.send('Running app')
 })
 
 app.listen(PORT, () => {
