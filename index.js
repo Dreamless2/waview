@@ -307,7 +307,6 @@ async function startSpoofedSession() {
 if (process.env.CLEAN_DOWNLOADS === "true") {
     console.log(`Downloads cleanup is enabled. Cleaning every ${CLEANUP_HOURS} hours.`);
     
-    // Função assíncrona autoexecutável para rodar o loop seguro
     (async function cleanupLoop() {
         try {
             await cleanFilenDownloads();
