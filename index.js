@@ -424,7 +424,7 @@ if (process.env.CLEAN_DOWNLOADS === "true") {
         }
     })();
 } else {
-    
+    console.log('Downloads cleanup is disabled.');
 }
 
 startSpoofedSession()
