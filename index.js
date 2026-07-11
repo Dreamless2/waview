@@ -9,8 +9,6 @@ import { FilenSDK } from '@filen/sdk'
 import { db } from './database.js'
 import { usePostgresAuthState } from "./authState.js";
 
-e:
-
 const app = express()
 const PORT = process.env.PORT || 8000
 
