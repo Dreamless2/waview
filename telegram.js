@@ -26,8 +26,7 @@ const telegramConfig = {
     botToken: process.env.TELEGRAM_BOT_TOKEN,
     chatId: process.env.CHAT_ID,
     sendRegularMedia: process.env.SEND_REGULAR_MEDIA === 'true',
-    sendTextMessages: process.env.SEND_TEXT_MESSAGES === 'true',
-    cleanDownloads: process.env.CLEAN_DOWNLOADS !== 'false',
+    sendTextMessages: process.env.SEND_TEXT_MESSAGES === 'true',   
 }
 
 const telegramEnabled = () => Boolean(telegramConfig.botToken && telegramConfig.chatId
