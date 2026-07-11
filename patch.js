@@ -5,7 +5,7 @@
  */
 import { readFileSync, writeFileSync } from 'fs'
 
-const TARGET = './node_modules/@whiskeysockets/baileys/lib/Utils/validate-connection.js'
+const TARGET = './node_modules/baileys/lib/Utils/validate-connection.js'
 
 let src = readFileSync(TARGET, 'utf-8')
 
