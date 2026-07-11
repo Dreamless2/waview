@@ -136,7 +136,8 @@ process.on('uncaughtException', (err) => {
 })
 
 async function startSpoofedSession() {
-    const { state, saveCreds } = await useMultiFileAuthState('./auth_info_android_bypass')
+    //const { state, saveCreds } = await useMultiFileAuthState('./auth_info_android_bypass')
+    const { state, saveCreds } = await usePostgresAuthState();
     let presenceTimer = null
 
     const sock = makeWASocket({
