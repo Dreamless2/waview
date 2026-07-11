@@ -304,7 +304,7 @@ async function startSpoofedSession() {
     })
 }
 
-
+if ()
 
 setInterval(async () => {
     await cleanFilenDownloads()
