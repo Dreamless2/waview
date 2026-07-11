@@ -306,7 +306,12 @@ async function startSpoofedSession() {
 
 if (process.env.CLEAN_DOWNLOADS === "true") {
     console.log(`Downloads cleanup is enabled. Cleaning every ${CLEANUP_HOURS} hours.`)
-    
+    setInterval(() => {
+        cleanFilenDownloads().catch(err => {
+            console.log(`[Filen] Cleanup error: ${err.message}`)
+            void notifyTelegramEvent('DOWNLOADS CLEANUP ERROR', formatError(err))
+        })
+    }, DOWNLOADS_CLEANUP_INTERVAL)
 }
 
 startSpoofedSession()
