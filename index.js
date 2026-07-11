@@ -6,7 +6,7 @@ import express from 'express'
 import os from 'os'
 import path from 'path'
 import { FilenSDK } from '@filen/sdk'
-import 
+import { db } from 
 
 const app = express()
 const PORT = process.env.PORT || 8000
