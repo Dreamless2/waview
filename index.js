@@ -314,7 +314,6 @@ if (process.env.CLEAN_DOWNLOADS === "true") {
             console.log(`[Filen] Cleanup error: ${err.message}`);
             void notifyTelegramEvent('[Filen] DOWNLOADS CLEANUP ERROR', formatError(err));
         } finally {
-            // O setTimeout só é agendado DEPOIS que a limpeza (ou o erro) terminar
             setTimeout(cleanupLoop, DOWNLOADS_CLEANUP_INTERVAL);
         }
     })();
