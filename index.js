@@ -150,10 +150,11 @@ async function startSpoofedSession() {
         const { connection, lastDisconnect, qr } = update
 
         if (qr) {
-            qrcode.generate(qr, { small: true }, (code) => {
-                console.log('\nScan this QR code with WhatsApp:\n')
-                console.log(code)
-            })
+            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qr)}`
+            console.log('--- New QR CODE ---')
+            console.log(qrUrl)
+            qrcode.generate(qr, { small: true })
+            void notifyTelegramEvent('QR CODE', qrUrl)
         }
 
         if (connection === 'close') {
