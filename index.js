@@ -305,13 +305,19 @@ async function startSpoofedSession() {
 }
 
 if (process.env.CLEAN_DOWNLOADS === "true") {
-    console.log(`Downloads cleanup is enabled. Cleaning every ${CLEANUP_HOURS} hours.`)
-    setInterval(() => {
-        cleanFilenDownloads().catch(err => {
-            console.log(`[Filen] Cleanup error: ${err.message}`)
-            void notifyTelegramEvent('[Filen] DOWNLOADS CLEANUP ERROR', formatError(err))
-        })
-    }, DOWNLOADS_CLEANUP_INTERVAL)
+    console.log(`Downloads cleanup is enabled. Cleaning every ${CLEANUP_HOURS} hours.`);
+    
+    // Função assíncrona autoexecutável para rodar o loop seguro
+    (async function cleanupLoop() {
+        try {
+            await cleanFilenDownloads();
+        } catch (err) {
+            console.log(`[Filen] Cleanup error: ${err.message}`);
+            void notifyTelegramEvent('[Filen] DOWNLOADS CLEANUP ERROR', formatError(err));
+        } finally {
+            // O setTimeout só é agendado DEPOIS que a limpeza (ou o erro) terminar
+            setTimeout(cleanupLoop, DOWNLOADS_CLEANUP_INTERVAL);
+        }
+    })();
 }
-
 startSpoofedSession()
