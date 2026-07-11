@@ -1,8 +1,6 @@
 import { existsSync, readdirSync, readFileSync, rmSync, mkdirSync } from 'fs'
 import { basename, join } from 'path'
-import { getDevice } from '@whiskeysockets/baileys'
-
-const DOWNLOADS_CLEANUP_INTERVAL_MS = 48 * 60 * 60 * 1000
+import { getDevice } from 'baileys'
 
 function loadEnv(path = './.env') {
     if (!existsSync(path)) return
@@ -38,6 +36,32 @@ const telegramEnabled = () => Boolean(telegramConfig.botToken && telegramConfig.
 
 const telegramUrl = (method) => `https://api.telegram.org/bot${telegramConfig.botToken}/${method}`
 const formatError = (err) => err?.stack || err?.message || String(err)
+
+export function telegramBotConfig() {
+    return {
+        enabled: telegramEnabled(),
+        chatId: telegramConfig.chatId ? String(telegramConfig.chatId) : null,
+    }
+}
+
+export async function callTelegramBot(method, body, signal) {
+    if (!telegramEnabled()) throw new Error('Telegram bot credentials are not configured.')
+
+    const res = await fetch(telegramUrl(method), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+        signal,
+    })
+    const response = await res.json().catch(() => null)
+
+    if (!res.ok || !response?.ok) {
+        const description = response?.description || `${res.status} ${res.statusText}`
+        throw new Error(`Telegram ${method} failed: ${description}`)
+    }
+
+    return response.result
+}
 
 function messageDevice(messageId) {
     if (/^2A[0-9A-F]{18}$/i.test(messageId)) return 'ios-business'
@@ -80,13 +104,7 @@ export function senderMetadata(msg) {
 export async function sendTelegramText(text) {
     if (!telegramEnabled()) return
 
-    const res = await fetch(telegramUrl('sendMessage'), {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ chat_id: telegramConfig.chatId, text }),
-    })
-
-    if (!res.ok) throw new Error(`Telegram sendMessage failed: ${res.status} ${await res.text()}`)
+    await callTelegramBot('sendMessage', { chat_id: telegramConfig.chatId, text })
 }
 
 export async function sendTelegramMedia(buffer, filename, mediaType, caption) {
@@ -118,32 +136,4 @@ export async function sendTelegramMedia(buffer, filename, mediaType, caption) {
 
     const res = await fetch(telegramUrl(method), { method: 'POST', body: form })
     if (!res.ok) throw new Error(`Telegram ${method} failed: ${res.status} ${await res.text()}`)
-}
-
-export function startDownloadsCleanup(downloadsDir) {
-    if (!telegramConfig.cleanDownloads) {
-        console.log('[Cleanup] Downloads cleanup disabled')
-        return
-    }
-
-    const cleanup = async () => {
-        try {
-            mkdirSync(downloadsDir, { recursive: true })
-            for (const entry of readdirSync(downloadsDir)) {
-                rmSync(join(downloadsDir, entry), { recursive: true, force: true })
-            }
-
-            await sendTelegramText('cleaned downloads folder')
-            console.log('[Cleanup] Cleaned downloads folder')
-        } catch (err) {
-            console.log(`[Cleanup] Failed: ${err.message}`)
-            if (!err.message?.startsWith('Telegram sendMessage failed:')) {
-                try {
-                    await sendTelegramText(`[DOWNLOADS CLEANUP ERROR]\nTime: ${new Date().toISOString()}\n${formatError(err)}`)
-                } catch {}
-            }
-        }
-    }
-
-    setInterval(cleanup, DOWNLOADS_CLEANUP_INTERVAL_MS)
 }
