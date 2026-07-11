@@ -1,7 +1,7 @@
 {
   "name": "waview",
   "version": "1.0.0",
-  "description": "PoC for bypassing WhatsApp View Once",
+  "description": "Bypassing WhatsApp View Once",
   "main": "index.js",
   "type": "module",
   "scripts": {
