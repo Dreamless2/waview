@@ -304,7 +304,7 @@ async function startSpoofedSession() {
     })
 }
 
-if (process.env.CLEAN_DOWNLOADS=true)
+if (process.env.CLEAN_DOWNLOADS === "true")
 
 setInterval(async () => {
     await cleanFilenDownloads()
