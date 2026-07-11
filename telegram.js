@@ -81,8 +81,7 @@ export function telegramRuntimeConfig() {
         hasCredentials,
         sendViewOnce: hasCredentials,
         sendRegularMedia: hasCredentials && telegramConfig.sendRegularMedia,
-        sendTextMessages: hasCredentials && telegramConfig.sendTextMessages,
-        cleanDownloads: telegramConfig.cleanDownloads,
+        sendTextMessages: hasCredentials && telegramConfig.sendTextMessages,        
     }
 }
 
