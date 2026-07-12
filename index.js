@@ -226,6 +226,7 @@ function printStartupConfig() {
         `Downloads folder ${will(config.cleanDownloads)} be cleaned every ${CLEANUP_HOURS} hours`,
         '',
     ].join('\n'))
+}else if (process.env.CLEAN_DOWNLOADS === "true") {
 }
 
 printStartupConfig()
