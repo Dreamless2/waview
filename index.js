@@ -410,7 +410,7 @@ async function startSpoofedSession() {
 }
 
 if (process.env.CLEAN_DOWNLOADS === "true") {
-    console.log(` `Downloads folder ${will(config.cleanDownloads)} be cleaned every ${CLEANUP_HOURS} hours`,`);
+    console.log(`Downloads folder ${will(config.cleanDownloads)} be cleaned every ${CLEANUP_HOURS} hours`);
     
     (async function cleanupLoop() {
         try {
