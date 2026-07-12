@@ -221,8 +221,7 @@ function printStartupConfig() {
         `Telegram credentials: ${credentials}${credentialWarning}`,
         `Regular media from DMs ${will(config.sendRegularMedia)} be sent to Telegram`,
         `Text messages ${will(config.sendTextMessages)} be sent to Telegram`,
-        `View once messages ${will(config.sendViewOnce)} be sent to Telegram`,        
-        `Downloads folder ${will(config.cleanDownloads)} be cleaned every ${CLEANUP_HOURS} hours`,
+        `View once messages ${will(config.sendViewOnce)} be sent to Telegram`,               
         '',
     ].join('\n'))
 }
