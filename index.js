@@ -214,6 +214,7 @@ function printStartupConfig() {
     const credentials = config.hasCredentials ? 'present' : 'not present'
     const credentialWarning = config.hasCredentials ? '' : ' (Telegram sends disabled)'
 
+    if (process.env.CLEAN_DOWNLOADS === "true") {
     console.log([
         '',
         'waview started, checking for auth...',
