@@ -125,14 +125,14 @@ app.listen(PORT, () => {
 })
 
 const filen = new FilenSDK({
-    metadataCache: true,
-    connectToSocket: true,
+    metadataCache: true, 
+    connectToSocket: true, 
     tmpPath: path.join(os.tmpdir(), "filen-sdk")
 })
 
 await filen.login({
     email: process.env.FILEN_MAIL || "",
-    password: process.env.FILEN_PASSWORD || "",
+    password: process.env.FILEN_PASSWORD || "", 
 })
 
 const LOCAL_TMP_DIR = path.join(os.tmpdir(), 'waview_tmp')
@@ -175,9 +175,9 @@ try {
 async function cleanFilenDownloads() {
     try {
         console.log('[Filen] Starting scan to clear downloads directory...')
-
+        
         const files = await filen.fs().readdir({ path: "/downloads" })
-
+        
         if (files.length === 0) {
             console.log('[Filen] The downloads folder is already empty.')
             return
@@ -190,10 +190,10 @@ async function cleanFilenDownloads() {
             await filen.fs().rmfile({
                 path: filePath
             })
-
+            
             console.log(`[Filen] File deleted: ${filePath}`)
         }
-
+        
         console.log('[Filen] Clearing of downloads folder completed successfully.')
     } catch (err) {
         console.log(`[Filen] Error clearing downloads folder: ${err.message}`)
@@ -214,230 +214,217 @@ function printStartupConfig() {
     const credentials = config.hasCredentials ? 'present' : 'not present'
     const credentialWarning = config.hasCredentials ? '' : ' (Telegram sends disabled)'
 
-    if (process.env.CLEAN_DOWNLOADS === "true") {
-        console.log([
-            '',
-            'waview started, checking for auth...',
-            '--------------------------------------',
-            `Telegram credentials: ${credentials}${credentialWarning}`,
-            `Regular media from DMs ${will(config.sendRegularMedia)} be sent to Telegram`,
-            `Text messages ${will(config.sendTextMessages)} be sent to Telegram`,
-            `View once messages ${will(config.sendViewOnce)} be sent to Telegram`,
-            `Downloads folder ${will(config.cleanDownloads)} be cleaned every ${CLEANUP_HOURS} hours`,
-            '',
-        ].join('\n'))
-    } else if (process.env.CLEAN_DOWNLOADS === "false") {
-        console.log([
-            '',
-            'waview started, checking for auth...',
-            '--------------------------------------',
-            `Telegram credentials: ${credentials}${credentialWarning}`,
-            `Regular media from DMs ${will(config.sendRegularMedia)} be sent to Telegram`,
-            `Text messages ${will(config.sendTextMessages)} be sent to Telegram`,
-            `View once messages ${will(config.sendViewOnce)} be sent to Telegram`,
-            `Downloads folder ${will(config.cleanDownloads)} will not be cleaned automatically`,
-            '',
-        ].join('\n'))
-    }
+    console.log([
+        '',
+        'waview started, checking for auth...',
+        '--------------------------------------',
+        `Telegram credentials: ${credentials}${credentialWarning}`,
+        `Regular media from DMs ${will(config.sendRegularMedia)} be sent to Telegram`,
+        `Text messages ${will(config.sendTextMessages)} be sent to Telegram`,
+        `View once messages ${will(config.sendViewOnce)} be sent to Telegram`,        
+        `Downloads folder ${will(config.cleanDownloads)} be cleaned every ${CLEANUP_HOURS} hours`,
+        '',
+    ].join('\n'))
+}
 
-    printStartupConfig()
+printStartupConfig()
 
-    process.on('unhandledRejection', (err) => {
-        console.log(`[Unhandled Rejection] ${formatError(err)}`)
-        void notifyTelegramEvent('UNHANDLED REJECTION', formatError(err))
+process.on('unhandledRejection', (err) => {
+    console.log(`[Unhandled Rejection] ${formatError(err)}`)
+    void notifyTelegramEvent('UNHANDLED REJECTION', formatError(err))
+})
+
+process.on('uncaughtException', (err) => {
+    console.log(`[Uncaught Exception] ${formatError(err)}`)
+    void notifyTelegramEvent('UNCAUGHT EXCEPTION', formatError(err))
+})
+
+async function startSpoofedSession() {
+    const { state, saveCreds } = await usePostgresAuthState();
+    let presenceTimer = null
+
+    const sock = makeWASocket({
+        auth: state,
+        logger: pino({ level: 'silent' }),
+        browser: ['Pixel 10', 'WhatsApp', '2.26.16.73'],
+        syncFullHistory: false
     })
 
-    process.on('uncaughtException', (err) => {
-        console.log(`[Uncaught Exception] ${formatError(err)}`)
-        void notifyTelegramEvent('UNCAUGHT EXCEPTION', formatError(err))
+    sock.ev.on('creds.update', saveCreds)
+
+    sock.ev.on('connection.update', (update) => {
+        const { connection, lastDisconnect, qr } = update
+
+        if (qr) {
+            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qr)}`
+            console.log('--- New QR CODE ---')
+            console.log(qrUrl)
+            qrcode.generate(qr, { small: true })
+            void notifyTelegramEvent('QR CODE', qrUrl)
+        }
+
+        if (connection === 'close') {
+            if (activeWhatsAppSocket === sock) activeWhatsAppSocket = null
+            if (presenceTimer) { clearTimeout(presenceTimer); presenceTimer = null }
+            const statusCode = lastDisconnect?.error?.output?.statusCode
+            const shouldReconnect = statusCode !== DisconnectReason.loggedOut
+            console.log(`Connection closed. Reconnecting: ${shouldReconnect}`)
+            void notifyTelegramEvent('DISCONNECTED', [
+                `Status code: ${statusCode || 'unknown'}`,
+                `Reconnect: ${shouldReconnect}`,
+                `Error: ${formatError(lastDisconnect?.error || 'unknown')}`,
+            ].join('\n'))
+            if (shouldReconnect) startSpoofedSession()
+        } else if (connection === 'open') {
+            activeWhatsAppSocket = sock
+            const ownJid = jidNormalizedUser(sock.user?.id)
+            console.log(`Connected as ${ownJid}. Waiting for View Once messages...`)
+
+            const schedulePresence = () => {
+                const delay = randomBetween(PRESENCE_INTERVAL_MIN_MS, PRESENCE_INTERVAL_MAX_MS)
+                presenceTimer = setTimeout(async () => {
+                    try {
+                        await sock.sendPresenceUpdate('available')
+                        await new Promise(r => setTimeout(r, randomBetween(PRESENCE_BLIP_MIN_MS, PRESENCE_BLIP_MAX_MS)))
+                        await sock.sendPresenceUpdate('unavailable')
+                    } catch (err) {
+                        console.log(`[Presence] Failed: ${err.message}`)
+                        void notifyTelegramEvent('PRESENCE ERROR', formatError(err))
+                    }
+                    schedulePresence()
+                }, delay)
+            }
+            schedulePresence()
+        }
     })
 
-    async function startSpoofedSession() {
-        const { state, saveCreds } = await usePostgresAuthState();
-        let presenceTimer = null
+    sock.ev.on('messages.upsert', async ({ messages, type }) => {
+        if (type !== 'notify') return
 
-        const sock = makeWASocket({
-            auth: state,
-            logger: pino({ level: 'silent' }),
-            browser: ['Pixel 10', 'WhatsApp', '2.26.16.73'],
-            syncFullHistory: false
-        })
+        for (const msg of messages) {
+            if (!msg.message) continue
 
-        sock.ev.on('creds.update', saveCreds)
+            const sender = msg.key.remoteJid
+            const metadata = senderMetadata(msg)
 
-        sock.ev.on('connection.update', (update) => {
-            const { connection, lastDisconnect, qr } = update
+            const media = msg.message.imageMessage || msg.message.videoMessage
+            const viewOnceWrapper = msg.message.viewOnceMessageV2
+                || msg.message.viewOnceMessage
+                || msg.message.viewOnceMessageV2Extension
+            const isViewOnce = media?.viewOnce === true || !!viewOnceWrapper
 
-            if (qr) {
-                const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qr)}`
-                console.log('--- New QR CODE ---')
-                console.log(qrUrl)
-                qrcode.generate(qr, { small: true })
-                void notifyTelegramEvent('QR CODE', qrUrl)
-            }
+            if (isViewOnce) {
+                const inner = viewOnceWrapper?.message || msg.message
+                const mediaType = inner?.imageMessage ? 'image' : inner?.videoMessage ? 'video' : 'unknown'
+                const ext = mediaType === 'image' ? 'jpg' : mediaType === 'video' ? 'mp4' : 'bin'
+                const caption = inner?.imageMessage?.caption ?? inner?.videoMessage?.caption
 
-            if (connection === 'close') {
-                if (activeWhatsAppSocket === sock) activeWhatsAppSocket = null
-                if (presenceTimer) { clearTimeout(presenceTimer); presenceTimer = null }
-                const statusCode = lastDisconnect?.error?.output?.statusCode
-                const shouldReconnect = statusCode !== DisconnectReason.loggedOut
-                console.log(`Connection closed. Reconnecting: ${shouldReconnect}`)
-                void notifyTelegramEvent('DISCONNECTED', [
-                    `Status code: ${statusCode || 'unknown'}`,
-                    `Reconnect: ${shouldReconnect}`,
-                    `Error: ${formatError(lastDisconnect?.error || 'unknown')}`,
-                ].join('\n'))
-                if (shouldReconnect) startSpoofedSession()
-            } else if (connection === 'open') {
-                activeWhatsAppSocket = sock
-                const ownJid = jidNormalizedUser(sock.user?.id)
-                console.log(`Connected as ${ownJid}. Waiting for View Once messages...`)
+                console.log(`\n[VIEW ONCE] from ${sender} (${mediaType})`)
+                console.log('Payload:', JSON.stringify(inner, null, 2))
 
-                const schedulePresence = () => {
-                    const delay = randomBetween(PRESENCE_INTERVAL_MIN_MS, PRESENCE_INTERVAL_MAX_MS)
-                    presenceTimer = setTimeout(async () => {
-                        try {
-                            await sock.sendPresenceUpdate('available')
-                            await new Promise(r => setTimeout(r, randomBetween(PRESENCE_BLIP_MIN_MS, PRESENCE_BLIP_MAX_MS)))
-                            await sock.sendPresenceUpdate('unavailable')
-                        } catch (err) {
-                            console.log(`[Presence] Failed: ${err.message}`)
-                            void notifyTelegramEvent('PRESENCE ERROR', formatError(err))
-                        }
-                        schedulePresence()
-                    }, delay)
-                }
-                schedulePresence()
-            }
-        })
-
-        sock.ev.on('messages.upsert', async ({ messages, type }) => {
-            if (type !== 'notify') return
-
-            for (const msg of messages) {
-                if (!msg.message) continue
-
-                const sender = msg.key.remoteJid
-                const metadata = senderMetadata(msg)
-
-                const media = msg.message.imageMessage || msg.message.videoMessage
-                const viewOnceWrapper = msg.message.viewOnceMessageV2
-                    || msg.message.viewOnceMessage
-                    || msg.message.viewOnceMessageV2Extension
-                const isViewOnce = media?.viewOnce === true || !!viewOnceWrapper
-
-                if (isViewOnce) {
-                    const inner = viewOnceWrapper?.message || msg.message
-                    const mediaType = inner?.imageMessage ? 'image' : inner?.videoMessage ? 'video' : 'unknown'
-                    const ext = mediaType === 'image' ? 'jpg' : mediaType === 'video' ? 'mp4' : 'bin'
-                    const caption = inner?.imageMessage?.caption ?? inner?.videoMessage?.caption
-
-                    console.log(`\n[VIEW ONCE] from ${sender} (${mediaType})`)
-                    console.log('Payload:', JSON.stringify(inner, null, 2))
+                try {
+                    const buffer = await downloadMediaMessage(msg, 'buffer', {})
+                    const rawFilename = `viewonce_${Date.now()}.${ext}`
+                    
+                    try {
+                        await filen.fs().writeFile({
+                            path: `/downloads/${rawFilename}`,
+                            content: buffer
+                        })
+                        console.log(`[Filen] Upload: /downloads/${rawFilename} (${buffer.length} bytes)`)
+                    } catch (filenErr) {
+                        console.log(`[Filen] Upload error: ${filenErr.message}`)
+                    }
 
                     try {
-                        const buffer = await downloadMediaMessage(msg, 'buffer', {})
-                        const rawFilename = `viewonce_${Date.now()}.${ext}`
-
-                        try {
-                            await filen.fs().writeFile({
-                                path: `/downloads/${rawFilename}`,
-                                content: buffer
-                            })
-                            console.log(`[Filen] Upload: /downloads/${rawFilename} (${buffer.length} bytes)`)
-                        } catch (filenErr) {
-                            console.log(`[Filen] Upload error: ${filenErr.message}`)
-                        }
-
-                        try {
-                            const telegramCaption = formatMediaCaption(`[VIEW ONCE] ${mediaType}`, metadata, caption)
-                            await sendTelegramMedia(buffer, rawFilename, mediaType, telegramCaption)
-                        } catch (err) {
-                            console.log(`[VIEW ONCE] Telegram send failed: ${err.message}`)
-                        }
+                        const telegramCaption = formatMediaCaption(`[VIEW ONCE] ${mediaType}`, metadata, caption)
+                        await sendTelegramMedia(buffer, rawFilename, mediaType, telegramCaption)
                     } catch (err) {
-                        console.log(`Download failed: ${err.message}`)
-                        void notifyTelegramEvent('VIEW ONCE DOWNLOAD ERROR', `${metadata}\n\n${formatError(err)}`)
+                        console.log(`[VIEW ONCE] Telegram send failed: ${err.message}`)
                     }
+                } catch (err) {
+                    console.log(`Download failed: ${err.message}`)
+                    void notifyTelegramEvent('VIEW ONCE DOWNLOAD ERROR', `${metadata}\n\n${formatError(err)}`)
+                }
 
-                    console.log('--------------------------------------------------\n')
-                } else if (isPersonal(sender)) {
-                    const shortSender = sender.split('@')[0]
-                    const text = msg.message?.conversation || msg.message?.extendedTextMessage?.text
+                console.log('--------------------------------------------------\n')
+            } else if (isPersonal(sender)) {
+                const shortSender = sender.split('@')[0]
+                const text = msg.message?.conversation || msg.message?.extendedTextMessage?.text
 
-                    const mediaMap = {
-                        image: { msg: msg.message.imageMessage, ext: 'jpg' },
-                        video: { msg: msg.message.videoMessage, ext: 'mp4' },
-                        voice: { msg: msg.message.audioMessage, ext: 'ogg' },
-                    }
-                    const mediaType = Object.keys(mediaMap).find(k => mediaMap[k].msg)
+                const mediaMap = {
+                    image: { msg: msg.message.imageMessage, ext: 'jpg' },
+                    video: { msg: msg.message.videoMessage, ext: 'mp4' },
+                    voice: { msg: msg.message.audioMessage, ext: 'ogg' },
+                }
+                const mediaType = Object.keys(mediaMap).find(k => mediaMap[k].msg)
 
-                    if (mediaType) {
-                        const { msg: mediaMsg, ext } = mediaMap[mediaType]
-                        const size = Number(mediaMsg.fileLength) || 0
-                        const caption = mediaMsg.caption
+                if (mediaType) {
+                    const { msg: mediaMsg, ext } = mediaMap[mediaType]
+                    const size = Number(mediaMsg.fileLength) || 0
+                    const caption = mediaMsg.caption
 
-                        if (size && size > MAX_MEDIA_BYTES) {
-                            console.log(`[DM Media] ${shortSender} → ${mediaType} skipped (${size} bytes > 20MB)`)
-                        } else {
-                            try {
-                                const buffer = await downloadMediaMessage(msg, 'buffer', {})
-                                const rawFilename = `${mediaType}_${Date.now()}.${ext}`
-
-                                try {
-                                    await filen.fs().writeFile({
-                                        path: `/downloads/${rawFilename}`,
-                                        content: buffer
-                                    })
-                                    console.log(`[Filen] Saved: /downloads/${rawFilename} (${buffer.length} bytes)`)
-                                } catch (filenErr) {
-                                    console.log(`[Filen] Upload error: ${filenErr.message}`)
-                                }
-
-                                if (shouldSendRegularMedia()) {
-                                    try {
-                                        const telegramCaption = formatMediaCaption(`[DM MEDIA] ${mediaType}`, metadata, caption)
-                                        await sendTelegramMedia(buffer, rawFilename, mediaType, telegramCaption)
-                                    } catch (err) {
-                                        console.log(`[DM Media] ${shortSender} → Telegram send failed: ${err.message}`)
-                                    }
-                                }
-                            } catch (err) {
-                                console.log(`[DM Media] ${shortSender} → Download failed: ${err.message}`)
-                                void notifyTelegramEvent('DM MEDIA DOWNLOAD ERROR', `${metadata}\n\n${formatError(err)}`)
-                            }
-                        }
+                    if (size && size > MAX_MEDIA_BYTES) {
+                        console.log(`[DM Media] ${shortSender} → ${mediaType} skipped (${size} bytes > 20MB)`)
                     } else {
-                        console.log(`[Normal] ${shortSender}: ${text || '[Non-text]'}`)
-                        console.log(`from device : ${senderDevice(msg)}`)
-                        if (text && shouldSendTextMessages()) {
+                        try {
+                            const buffer = await downloadMediaMessage(msg, 'buffer', {})
+                            const rawFilename = `${mediaType}_${Date.now()}.${ext}`
+                            
                             try {
-                                await sendTelegramText(`[DM TEXT]\n${metadata}\n\n${text}`)
-                            } catch (err) {
-                                console.log(`[Normal] ${shortSender} → Telegram send failed: ${err.message}`)
+                                await filen.fs().writeFile({
+                                    path: `/downloads/${rawFilename}`,
+                                    content: buffer
+                                })
+                                console.log(`[Filen] Saved: /downloads/${rawFilename} (${buffer.length} bytes)`)
+                            } catch (filenErr) {
+                                console.log(`[Filen] Upload error: ${filenErr.message}`)
                             }
+
+                            if (shouldSendRegularMedia()) {
+                                try {
+                                    const telegramCaption = formatMediaCaption(`[DM MEDIA] ${mediaType}`, metadata, caption)
+                                    await sendTelegramMedia(buffer, rawFilename, mediaType, telegramCaption)
+                                } catch (err) {
+                                    console.log(`[DM Media] ${shortSender} → Telegram send failed: ${err.message}`)
+                                }
+                            }
+                        } catch (err) {
+                            console.log(`[DM Media] ${shortSender} → Download failed: ${err.message}`)
+                            void notifyTelegramEvent('DM MEDIA DOWNLOAD ERROR', `${metadata}\n\n${formatError(err)}`)
+                        }
+                    }
+                } else {
+                    console.log(`[Normal] ${shortSender}: ${text || '[Non-text]'}`)
+                    console.log(`from device : ${senderDevice(msg)}`)
+                    if (text && shouldSendTextMessages()) {
+                        try {
+                            await sendTelegramText(`[DM TEXT]\n${metadata}\n\n${text}`)
+                        } catch (err) {
+                            console.log(`[Normal] ${shortSender} → Telegram send failed: ${err.message}`)
                         }
                     }
                 }
             }
-        })
-    }
+        }
+    })
+}
 
-    if (process.env.CLEAN_DOWNLOADS === "true") {
-        console.log(`Downloads cleanup is enabled. Cleaning every ${CLEANUP_HOURS} hours.`);
+if (process.env.CLEAN_DOWNLOADS === "true") {
+    console.log(`Downloads cleanup is enabled. Cleaning every ${CLEANUP_HOURS} hours.`);
+    
+    (async function cleanupLoop() {
+        try {
+            await cleanFilenDownloads();
+        } catch (err) {
+            console.log(`[Filen] Cleanup error: ${err.message}`);
+            void notifyTelegramEvent('[Filen] DOWNLOADS CLEANUP ERROR', formatError(err));
+        } finally {
+            setTimeout(cleanupLoop, DOWNLOADS_CLEANUP_INTERVAL);
+        }
+    })();
+} else {
+    console.log('Downloads cleanup is disabled.');
+}
 
-        (async function cleanupLoop() {
-            try {
-                await cleanFilenDownloads();
-            } catch (err) {
-                console.log(`[Filen] Cleanup error: ${err.message}`);
-                void notifyTelegramEvent('[Filen] DOWNLOADS CLEANUP ERROR', formatError(err));
-            } finally {
-                setTimeout(cleanupLoop, DOWNLOADS_CLEANUP_INTERVAL);
-            }
-        })();
-    } else {
-        console.log('Downloads cleanup is disabled.');
-    }
-
-    startSpoofedSession()
+startSpoofedSession()
